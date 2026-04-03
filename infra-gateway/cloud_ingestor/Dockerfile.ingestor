@@ -18,12 +18,6 @@ RUN pip install --no-cache-dir \
     cryptography
 
 COPY kafka_config.py .
-COPY certs/ /certs/
-
-RUN cp /certs/ca.pem /usr/local/share/ca-certificates/aiven-ca.crt \
-    && update-ca-certificates \
-    && chown -R nexus:nexus /certs \
-    && chmod 600 /certs/*
 
 USER nexus
 EXPOSE 8080

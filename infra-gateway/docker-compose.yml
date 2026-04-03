@@ -168,7 +168,9 @@ services:
       NEXUS_KAFKA_REPLICATION: "1"
       AIVEN_SSL_CAFILE: ${AIVEN_SSL_CAFILE:-}
       AIVEN_SSL_CERTFILE: ${AIVEN_SSL_CERTFILE:-}
-      AIVEN_SSL_KEYFILE: ${AIVEN_SSL_KEYFILE:-}             # Use 1 for dev; set to 3 in prod
+      AIVEN_SSL_KEYFILE: ${AIVEN_SSL_KEYFILE:-}
+    volumes:
+      - ./cloud_ingestor/certs:/certs:ro   # mount local certs, ignored by git
     ports:
       - "8080:8080"
     networks:
