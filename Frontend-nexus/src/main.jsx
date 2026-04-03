@@ -1,10 +1,4 @@
-/**
- * @file main.jsx
- * @description App entry point — wires up the Ghost SDK via TelemetryProvider.
- * This is the ONE place where SDK config lives. Everything else just uses hooks.
- *
- * Person A — Integration example
- */
+
 
 import React from "react";
 import ReactDOM from "react-dom/client";

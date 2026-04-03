@@ -1,14 +1,9 @@
-/**
- * @file Dashboard.jsx
- * @description Nexus — Strategic Feature Intelligence Dashboard
- * Redesigned: Light enterprise SaaS, animated, production-grade.
- * Person A — Layer 5
- */
+
 
 import React, { useState, useEffect, useRef } from "react";
 import { useTelemetry } from "../context/TelemetryContext.jsx";
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
+
 const T = {
   bg: "#F8F9FB",
   surface: "#FFFFFF",
