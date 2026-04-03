@@ -1,18 +1,10 @@
-/**
- * @file LoanModule.jsx
- * @description Example: how Person A's SDK integrates into an existing component.
- * Shows two patterns:
- *   1. HOC wrapping (zero changes to existing component logic)
- *   2. Manual hook usage (fine-grained control)
- *
- * Person A — Usage example for team reference
- */
+
 
 import React, { useState } from "react";
 import { withFeatureTracking, wrapAPICall } from "../sdk/tracking-wrapper.js";
 import { useFeatureTelemetry, useJourneyTelemetry, FEATURE_MODULE, JOURNEY } from "../hooks/useTelemetry.js";
 
-// ─── Pattern 1: HOC Wrapping (recommended for existing components) ─────────────
+// Pattern 1: HOC Wrapping (recommended for existing components)
 // Wrap any existing component — NO changes to the component's internal logic needed
 
 function LoanModuleBase() {
