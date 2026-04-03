@@ -1,0 +1,201 @@
+# NEXUS | infra-gateway/docker-compose.yml
+# Person B: "The Bridge" Engineer
+#
+# PURPOSE:
+#   Orchestrates the complete NEXUS infrastructure in a single file.
+#   Supports two deployment profiles:
+#     - "onprem"  → Runs inside the client's firewall. Only the vault + sync sidecar.
+#     - "cloud"   → Runs in NEXUS cloud. Kafka, Zookeeper, and the cloud ingestor API.
+#
+# USAGE:
+#   On-Prem deployment (run inside client's network):
+#     docker-compose --profile onprem up -d
+#
+#   Cloud deployment (run on NEXUS managed cloud):
+#     docker-compose --profile cloud up -d
+#
+#   Full local dev (run everything):
+#     docker-compose --profile onprem --profile cloud up -d
+
+
+# ─── Shared Networks ──────────────────────────────────────────────────────────
+networks:
+  nexus_internal:           # Used by on-prem components. Isolated from internet.
+    driver: bridge
+    internal: true          # No external internet access from this network
+  nexus_cloud:              # Used by cloud components. Has internet access.
+    driver: bridge
+
+# ─── Named Volumes ────────────────────────────────────────────────────────────
+volumes:
+  vault_data:               # Persistent SQLite DB for on-prem vault
+    driver: local
+  kafka_data:               # Kafka broker data
+    driver: local
+  zookeeper_data:           # Zookeeper state
+    driver: local
+
+# ─── Services ─────────────────────────────────────────────────────────────────
+services:
+
+  # ── ON-PREM PROFILE ────────────────────────────────────────────────────────
+
+  # The On-Prem Vault Aggregator
+  # Reads raw events from local SQLite, aggregates them into InsightPackets.
+  nexus-vault-aggregator:
+    profiles: ["onprem"]
+    build:
+      context: ./on_prem_vault
+      dockerfile: Dockerfile.aggregator
+    container_name: nexus_vault_aggregator
+    restart: unless-stopped
+    environment:
+      NEXUS_DB_PATH: /vault/nexus_vault.db
+      NEXUS_AGG_INTERVAL: "300"             # Aggregate every 5 minutes
+      NEXUS_CPU_LIMIT: "2.0"               # Circuit breaker: halt if host CPU > 2%
+    volumes:
+      - vault_data:/vault                  # Persistent DB shared with sync service
+      - /etc/nexus/certs:/certs:ro         # TLS certs mounted from host
+    networks:
+      - nexus_internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sqlite3; sqlite3.connect('/vault/nexus_vault.db').execute('SELECT 1')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"                     # Hard CPU cap: this sidecar must not impact the host app
+          memory: 128M
+
+  # The On-Prem Sync Service
+  # Reads InsightPackets from SQLite and pushes to Cloud Ingestor via mTLS.
+  nexus-vault-sync:
+    profiles: ["onprem"]
+    build:
+      context: ./on_prem_vault
+      dockerfile: Dockerfile.sync
+    container_name: nexus_vault_sync
+    restart: unless-stopped
+    environment:
+      NEXUS_DB_PATH: /vault/nexus_vault.db
+      NEXUS_CLOUD_URL: ${NEXUS_CLOUD_INGESTOR_URL:-https://ingestor.nexus-cloud.internal/api/v1/ingest}
+      NEXUS_SYNC_INTERVAL: "60"
+      NEXUS_SYNC_BATCH: "20"
+      NEXUS_API_KEY: ${NEXUS_API_KEY}      # Injected from .env file at client site
+    volumes:
+      - vault_data:/vault                  # Shared volume — reads from same DB as aggregator
+      - /etc/nexus/certs:/certs:ro
+    networks:
+      - nexus_internal                     # Can reach aggregator's DB
+    depends_on:
+      - nexus-vault-aggregator
+    deploy:
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+
+  # ── CLOUD PROFILE ──────────────────────────────────────────────────────────
+
+  # Apache Zookeeper (Kafka dependency)
+  zookeeper:
+    profiles: ["cloud"]
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: nexus_zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - nexus_cloud
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 2181"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s 
+
+  # Apache Kafka Broker
+  kafka:
+    profiles: ["cloud"]
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: nexus_kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"  # Topics are created by kafka_config.py, not auto-created
+      KAFKA_LOG_RETENTION_MS: 604800000         # 7-day retention
+      KAFKA_MESSAGE_MAX_BYTES: 10485760         # 10MB max message size (for InsightPacket batches)
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    ports:
+      - "29092:29092"                           # Exposed for local dev only
+    networks:
+      - nexus_cloud
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # NEXUS Cloud Ingestor API (FastAPI)
+  nexus-cloud-ingestor:
+    profiles: ["cloud"]
+    build:
+      context: ./cloud_ingestor
+      dockerfile: Dockerfile.ingestor
+    container_name: nexus_cloud_ingestor
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      NEXUS_KAFKA_BROKERS: ${NEXUS_KAFKA_BROKERS:-kafka:9092}
+      NEXUS_API_KEY: ${NEXUS_API_KEY}
+      NEXUS_KAFKA_REPLICATION: "1"
+      AIVEN_SSL_CAFILE: ${AIVEN_SSL_CAFILE:-}
+      AIVEN_SSL_CERTFILE: ${AIVEN_SSL_CERTFILE:-}
+      AIVEN_SSL_KEYFILE: ${AIVEN_SSL_KEYFILE:-}
+    volumes:
+      - ./cloud_ingestor/certs:/certs:ro   # mount local certs, ignored by git
+    ports:
+      - "8080:8080"
+    networks:
+      - nexus_cloud
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    command: uvicorn kafka_config:app --host 0.0.0.0 --port 8080 --workers 4
+
+  # ── DEV TOOLS (no profile — always available in dev) ─────────────────────
+
+  # Kafka UI for local debugging — see topics, messages, consumer groups
+  kafka-ui:
+    profiles: ["cloud"]
+    image: provectuslabs/kafka-ui:latest
+    container_name: nexus_kafka_ui
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: nexus-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "9090:8080"
+    networks:
+      - nexus_cloud
