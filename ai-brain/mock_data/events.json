@@ -1,0 +1,11 @@
+[
+  {"tenant_id":"T1","feature_id":"KYC","event_type":"FEATURE_OPEN","timestamp":"2026-01-01T10:00:00","session_id":"S1"},
+  {"tenant_id":"T1","feature_id":"KYC","event_type":"FEATURE_SUCCESS","timestamp":"2026-01-01T10:01:00","session_id":"S1"},
+  {"tenant_id":"T1","feature_id":"LOAN","event_type":"FEATURE_OPEN","timestamp":"2026-01-01T10:02:00","session_id":"S1"},
+
+  {"tenant_id":"T2","feature_id":"KYC","event_type":"FEATURE_OPEN","timestamp":"2026-01-01T11:00:00","session_id":"S2"},
+  {"tenant_id":"T2","feature_id":"KYC","event_type":"FEATURE_FAIL","timestamp":"2026-01-01T11:01:00","session_id":"S2"},
+
+  {"tenant_id":"T3","feature_id":"KYC","event_type":"FEATURE_OPEN","timestamp":"2026-01-01T12:00:00","session_id":"S3"},
+  {"tenant_id":"T3","feature_id":"LOAN","event_type":"FEATURE_OPEN","timestamp":"2026-01-01T12:01:00","session_id":"S3"}
+]

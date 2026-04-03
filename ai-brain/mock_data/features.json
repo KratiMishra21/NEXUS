@@ -1,0 +1,9 @@
+{
+  "licensed_features": ["KYC", "LOAN", "CREDIT_CHECK", "INSURANCE"],
+  "feature_cost": {
+    "KYC": 10,
+    "LOAN": 20,
+    "CREDIT_CHECK": 15,
+    "INSURANCE": 25
+  }
+}
