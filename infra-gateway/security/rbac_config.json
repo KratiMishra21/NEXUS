@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NEXUS Role-Based Access Control Configuration",
+  "description": "Defines what each role can see and do in the NEXUS system. Applied by the API gateway layer. Person B owns this config.",
+  "version": "1.0.0",
+
+  "roles": {
+    "NEXUS_PRODUCT_MANAGER": {
+      "description": "Internal product managers at the software vendor. See cross-tenant aggregated insights.",
+      "data_scope": "ALL_TENANTS_AGGREGATED",
+      "permissions": [
+        "dashboard:view_adoption_heatmaps",
+        "dashboard:view_journey_funnels",
+        "dashboard:view_zombie_features",
+        "dashboard:view_roi_calculator",
+        "ai_advisor:view_recommendations",
+        "ai_advisor:run_simulations",
+        "telemetry:view_audit_log"
+      ],
+      "forbidden": [
+        "telemetry:view_raw_events",
+        "telemetry:view_user_hashes",
+        "tenants:view_raw_tenant_data",
+        "governance:toggle_telemetry_consent"
+      ]
+    },
+
+    "NEXUS_SALES": {
+      "description": "Sales team. Can see which clients underuse licensed features to identify upsell opportunities.",
+      "data_scope": "ALL_TENANTS_AGGREGATED",
+      "permissions": [
+        "dashboard:view_adoption_heatmaps",
+        "dashboard:view_zombie_features",
+        "ai_advisor:view_upsell_recommendations"
+      ],
+      "forbidden": [
+        "dashboard:view_journey_funnels",
+        "ai_advisor:run_simulations",
+        "telemetry:view_audit_log",
+        "telemetry:view_raw_events",
+        "governance:toggle_telemetry_consent"
+      ]
+    },
+
+    "NEXUS_COMPLIANCE": {
+      "description": "Compliance officer. Can audit telemetry consent states and data handling logs.",
+      "data_scope": "AUDIT_ONLY",
+      "permissions": [
+        "telemetry:view_audit_log",
+        "governance:view_consent_status",
+        "governance:view_pii_masking_report",
+        "telemetry:view_data_lineage"
+      ],
+      "forbidden": [
+        "dashboard:view_adoption_heatmaps",
+        "dashboard:view_journey_funnels",
+        "ai_advisor:view_recommendations",
+        "governance:toggle_telemetry_consent"
+      ]
+    },
+
+    "NEXUS_TENANT_ADMIN": {
+      "description": "Admin at a client tenant. Can see ONLY their own tenant's data and control their own telemetry consent.",
+      "data_scope": "OWN_TENANT_ONLY",
+      "permissions": [
+        "dashboard:view_adoption_heatmaps",
+        "dashboard:view_journey_funnels",
+        "governance:toggle_telemetry_consent",
+        "governance:view_consent_status",
+        "telemetry:view_audit_log"
+      ],
+      "forbidden": [
+        "tenants:view_other_tenant_data",
+        "ai_advisor:run_simulations",
+        "ai_advisor:view_upsell_recommendations",
+        "telemetry:view_raw_events"
+      ],
+      "note": "data_scope=OWN_TENANT_ONLY is enforced at the query layer by injecting tenant_id filter on every DB/Kafka query. This is NOT just a UI restriction."
+    },
+
+    "NEXUS_SUPER_ADMIN": {
+      "description": "NEXUS platform engineers only. Full access for debugging. All actions are audited.",
+      "data_scope": "ALL",
+      "permissions": ["*"],
+      "forbidden": [],
+      "audit_required": true,
+      "mfa_required": true
+    }
+  },
+
+  "enforcement_rules": {
+    "tenant_isolation": {
+      "description": "NEXUS_TENANT_ADMIN can NEVER access another tenant's data.",
+      "implementation": "Inject 'WHERE tenant_id = :caller_tenant_id' into ALL data queries when role is NEXUS_TENANT_ADMIN. Enforced in the data layer, not just the API layer.",
+      "violation_action": "HTTP 403 + audit log entry"
+    },
+    "pii_access": {
+      "description": "No role can access raw user_hash values or session_ids via the dashboard.",
+      "implementation": "Strip user_hash and session_id fields in the API serialization layer before any response is sent.",
+      "violation_action": "Strip field silently + audit log warning"
+    },
+    "raw_event_access": {
+      "description": "No role (including SUPER_ADMIN) can bulk-export raw_events via the API.",
+      "implementation": "The /api/v1/raw-events endpoint is disabled. Raw data access requires direct DB access with MFA.",
+      "violation_action": "HTTP 403 + alert to compliance officer"
+    }
+  },
+
+  "telemetry_consent": {
+    "description": "Per-tenant opt-out control. When a tenant opts out, telemetry collection stops immediately.",
+    "states": {
+      "FULL_OPT_IN":  "All telemetry collected and synced to cloud.",
+      "ON_PREM_ONLY": "Telemetry collected but InsightPackets NOT synced to cloud. Stays on-prem only.",
+      "OPT_OUT":      "Ghost SDK stops buffering. No data collected. On-prem vault is paused."
+    },
+    "enforcement": "On consent change, push new state to Ghost SDK via a signed config packet. SDK must re-check consent on every startup."
+  }
+}

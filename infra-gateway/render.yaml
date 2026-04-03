@@ -1,0 +1,24 @@
+# NEXUS | infra-gateway/render.yaml
+# Render deployment configuration
+
+services:
+  - type: web
+    name: nexus-cloud-ingestor
+    runtime: docker
+    dockerfilePath: ./cloud_ingestor/Dockerfile.ingestor
+    dockerContext: ./cloud_ingestor
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NEXUS_API_KEY
+        sync: false
+      - key: NEXUS_KAFKA_BROKERS
+        sync: false
+      - key: AIVEN_SSL_CAFILE
+        value: /certs/ca.pem
+      - key: AIVEN_SSL_CERTFILE
+        value: /certs/client.cert
+      - key: AIVEN_SSL_KEYFILE
+        value: /certs/client.key
+      - key: NEXUS_KAFKA_REPLICATION
+        value: "1"

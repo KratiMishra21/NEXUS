@@ -1,0 +1,138 @@
+# ═══════════════════════════════════════════════════════════════════
+#  NEXUS — .gitignore
+#  Place this file at the repo ROOT: nexus/.gitignore
+#  Covers: Person A (SDK/JS), Person B (Python/Docker), Person C (ML/Python)
+# ═══════════════════════════════════════════════════════════════════
+
+
+# ─── SECRETS & ENVIRONMENT ──────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+*.key
+*.crt
+*.cert
+*.pem
+certs/
+/etc/nexus/
+
+# Aiven SSL certificates — never commit these
+certs/ca.pem
+certs/client.cert
+certs/client.key
+
+
+# ─── PYTHON ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+ENV/
+
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+.mypy_cache/
+.pyright/
+pyrightconfig.json
+
+.ipynb_checkpoints/
+*.ipynb
+
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+*.onnx
+models/saved/
+ai-brain/models/trained/
+ai-brain/vector_store/chroma/
+
+
+# ─── SQLITE DATABASE ────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+vault/
+
+
+# ─── NODE / JAVASCRIPT ──────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+
+dist/
+build/
+.next/
+out/
+
+.cache/
+.parcel-cache/
+
+
+# ─── DOCKER ─────────────────────────────────────────────────────────
+docker-compose.override.yml
+docker-compose.local.yml
+
+volumes/
+kafka-data/
+zookeeper-data/
+vault-data/
+
+
+# ─── IDE & EDITOR ────────────────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json
+
+.idea/
+*.iml
+*.iws
+
+*.swp
+*.swo
+*~
+\#*\#
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+
+# ─── LOGS ────────────────────────────────────────────────────────────
+*.log
+logs/
+*.log.*
+
+
+# ─── OS & MISC ───────────────────────────────────────────────────────
+*.tmp
+*.temp
+*.bak
+*.orig
+
+*.so
+*.dylib
+*.dll

@@ -1,0 +1,30 @@
+FROM python:3.13-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc python3-dev curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r nexus && useradd -r -g nexus nexus
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir \
+    requests==2.31.0 \
+    aiokafka==0.11.0 \
+    fastapi==0.111.0 \
+    "uvicorn[standard]==0.29.0" \
+    "pydantic>=2.10,<3" \
+    jsonschema==4.22.0 \
+    cryptography
+
+COPY kafka_config.py .
+COPY certs/ /certs/
+
+RUN cp /certs/ca.pem /usr/local/share/ca-certificates/aiven-ca.crt \
+    && update-ca-certificates \
+    && chown -R nexus:nexus /certs \
+    && chmod 600 /certs/*
+
+USER nexus
+EXPOSE 8080
+CMD uvicorn kafka_config:app --host 0.0.0.0 --port ${PORT:-8080} --workers 2

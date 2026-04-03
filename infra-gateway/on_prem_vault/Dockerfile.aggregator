@@ -1,0 +1,24 @@
+# NEXUS | Dockerfile.aggregator
+FROM python:3.13-slim
+ 
+RUN apt-get update && apt-get install -y --no-install-recommends gcc python3-dev && rm -rf /var/lib/apt/lists/*
+ 
+RUN groupadd -r nexus && useradd -r -g nexus nexus
+ 
+WORKDIR /app
+ 
+RUN pip install --no-cache-dir \
+    requests==2.31.0 \
+    aiokafka==0.11.0 \
+    fastapi==0.111.0 \
+    "uvicorn[standard]==0.29.0" \
+    "pydantic>=2.10,<3" \
+    jsonschema==4.22.0
+ 
+COPY aggregator.py .
+ 
+RUN mkdir -p /vault && chown nexus:nexus /vault
+ 
+USER nexus
+ 
+CMD ["python", "aggregator.py"]
