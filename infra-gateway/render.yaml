@@ -1,12 +1,11 @@
 # NEXUS | infra-gateway/render.yaml
 # Render deployment configuration
-
 services:
   - type: web
     name: nexus-cloud-ingestor
     runtime: docker
     dockerfilePath: ./cloud_ingestor/Dockerfile.ingestor
-    dockerContext: ./cloud_ingestor
+    dockerContext: .
     plan: free
     healthCheckPath: /health
     envVars:

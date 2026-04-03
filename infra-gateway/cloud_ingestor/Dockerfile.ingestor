@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir \
     jsonschema==4.22.0 \
     cryptography
 
-COPY kafka_config.py .
+COPY cloud_ingestor/kafka_config.py .
 
 USER nexus
 EXPOSE 8080
