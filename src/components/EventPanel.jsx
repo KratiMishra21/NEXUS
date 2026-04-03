@@ -1,0 +1,1 @@
+// Event Panel component
