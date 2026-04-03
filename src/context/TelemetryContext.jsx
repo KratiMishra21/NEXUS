@@ -1,25 +1,15 @@
-/**
- * @file TelemetryContext.jsx
- * @description React Context that makes the Ghost SDK available throughout
- * the component tree without prop drilling.
- *
- * Usage:
- *   1. Wrap your app in <TelemetryProvider> in main.jsx
- *   2. Use the useTelemetry() hook in any component
- *
- * Person A — Layer 5: UI Dashboard Structure
- */
+
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import GhostSDK from "../sdk/ghost-sdk.js";
 import { CHANNEL } from "../sdk/feature-taxonomy.js";
 import { installRouteTracker } from "../sdk/tracking-wrapper.jsx";
 
-// ─── Context ──────────────────────────────────────────────────────────────────
+
 
 const TelemetryContext = createContext(null);
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+
 
 /**
  * @param {object} props
@@ -66,7 +56,7 @@ export function TelemetryProvider({ tenantId, consentGranted, children }) {
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 
 /**
  * Access the Ghost SDK from any component.
